@@ -4,21 +4,53 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     mozilla = { url = "github:mozilla/nixpkgs-mozilla"; flake = false; };
+    import-cargo.url = "github:edolstra/import-cargo";
   };
 
-  outputs = { self, nixpkgs, flake-utils, mozilla }: flake-utils.lib.eachDefaultSystem (system:
-    let pkgs = import nixpkgs {
-      inherit system;
-      overlays = [ (import "${mozilla}/rust-overlay.nix") ];
-    }; in {
-      devShell = pkgs.mkShell {
-        buildInputs = [
-          (pkgs.rustChannelOf {
+  outputs = { self, nixpkgs, flake-utils, mozilla, import-cargo }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ (import "${mozilla}/rust-overlay.nix") ];
+          };
+          rust = (pkgs.rustChannelOf {
             rustToolchain = ./rust-toolchain;
             # SHA256 of latest stable from https://static.rust-lang.org/dist/channel-rust-stable.toml.sha256
             sha256 = "69dac0a6249c186b78959bc6a448db5a26397b5d23b8e5518723694522d371c2";
-          }).rust
-        ];
-      };
-    });
+          }).rust;
+          inherit (import-cargo.builders) importCargo; in
+        rec {
+          packages = {
+            spodr-server = pkgs.stdenv.mkDerivation rec {
+              name = "spodr-server";
+              src = self;
+
+              nativeBuildInputs = [
+                # setupHook which makes sure that a CARGO_HOME with
+                # vendored dependencies exists
+                (importCargo { lockFile = ./Cargo.lock; inherit pkgs; }).cargoHome
+                # Build-time dependencies
+                rust
+              ];
+
+              buildPhase = ''
+                cargo build --release --offline
+              '';
+
+              installPhase = ''
+                install -Dm775 ./target/release/${name} $out/bin/${name}
+              '';
+            };
+
+            container = pkgs.ociTools.buildContainer {
+              args = [ "${packages.spodr-server}/bin/spodr-server" ];
+            };
+          };
+
+          defaultPackage = packages.spodr-server;
+
+          devShell = pkgs.mkShell {
+            nativeBuildInputs = [ rust ];
+          };
+        });
 }
