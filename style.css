@@ -64,10 +64,7 @@ h1 {
 }
 
 footer {
-	padding-left: 40px;
-	padding-right: 40px;
-	padding-bottom: 10px;
-	padding-top: 10px;
+	padding: 2.5rem .5rem;
 	background-color: Lightpink;
 	font-size: 20px;
 }
@@ -78,14 +75,20 @@ footer {
 
 .row {
 	display: flex;
+	justify-content: center;
 }
 
 .column {
 	flex: 50%;
-	padding: 2rem;
+	padding: 0 2rem;
+	max-width: 60ch;
 }
 
-@media screen and (max-width: 600px) {
+.column:last-child {
+	padding-right: 0;
+}
+
+@media screen and (max-width: 750px) {
 	.page-footer .row {
 		flex-direction: column;
 	}
