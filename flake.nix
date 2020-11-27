@@ -50,7 +50,17 @@
           defaultPackage = packages.spodr-server;
 
           devShell = pkgs.mkShell {
-            nativeBuildInputs = [ rust ];
+            nativeBuildInputs = [ rust pkgs.postgresql_13 ];
+
+            shellHook = ''
+              export PGDATA="$PWD/db"
+              if [ ! -d "$PGDATA" ]; then initdb --auth=trust --no-locale; fi
+              sed --in-place "s|^#unix_socket_directories.*$|unix_socket_directories = '$PGDATA'|" \
+                  "$PGDATA/postgresql.conf"
+
+              trap "pg_ctl --pgdata='$PGDATA' stop" EXIT # Stop PostgreSQL upon exiting Nix shell
+              pg_ctl --log="$PGDATA/postgres.log" start
+            '';
           };
         });
 }

@@ -1,4 +1,8 @@
 # Nix build result
 result
 
+# Rust build directory
 /target
+
+# PostgreSQL development database
+/db
